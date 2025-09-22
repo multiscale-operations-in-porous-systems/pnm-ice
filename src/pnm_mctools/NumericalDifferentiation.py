@@ -3,6 +3,8 @@ import scipy
 import time
 from inspect import signature
 from typing import Callable
+# from pathos.multiprocessing import ProcessingPool as Pool
+# from pathos.helpers import cpu_count
 
 
 def _compute_dc(x_0, dc_value: float):
@@ -179,6 +181,9 @@ def _apply_numerical_differentiation_locally_constrained(c: np.ndarray,
     Nc = c.shape[1]
     single_param = len(signature(defect_func)._parameters) == 1
 
+    if exclude is None:
+        exclude = []
+
     # we assume that each 'cell' is responsible for Nc coupled components
     # therefore leading to a block-wise structure of the Jacobian. That
     # means, that each row requires Nc values. So we extend store the
@@ -228,8 +233,155 @@ def _apply_numerical_differentiation_locally_constrained(c: np.ndarray,
     return J, G_0
 
 
+def _apply_numerical_differentiation_exploit_sparsity(
+        network,
+        c: np.ndarray,
+        defect_func: Callable,
+        dc: float,
+        exclude: int | list[int] | None = None,
+        stencil_size: int = 1,
+        dtype=float,
+        opt: dict | None = None,
+        parallelism: int = 1):
+    r"""
+    Conducts numerical differentiation, exploiting the sparsity structure of the network
+    Parameters
+    ----------
+    network: OpenPNM Network object
+        The network object is used to determine the sparsity structure of the Jacobian.
+    c: array_like
+        array with scalar values, which serve as input for the defect function
+    defect_func: Callable
+        function which computes the defect with signature array_like(array_like)
+    dc: float
+        base value for differentiation interval
+    exclude: int | list[int]
+        component IDs for which the numerical differentiation shall not be conducted
+    stencil_size: int
+        number of additional adacent pores to include in the sparsity structure
+    dtype: data-type
+        desired data-type of the scalars in the Jacobian
+    opt: dict | None
+        an optimization parameter, which will provide some reusable data
+
+    Returns
+    -------
+    tuple of numerically determined Jacobian and defect
+
+    Notes
+    -----
+    Here, we exploit the sparsity structure of the network to speed up the numerical
+    differentiation. The basic assumption is that the influence of a perturbance in
+    one pore is limited to its direct neighbours and potentially some additional
+    pores, depending on the stencil size. This way, we can determine the influence
+    of multiple perturbances in one run of the defect function, significantly reducing
+    the computational cost.
+    """
+    tic = time.perf_counter_ns()
+    num_pores = network.num_pores()
+    Nc = c.shape[1]
+    if exclude is None:
+        exclude = []
+    elif isinstance(exclude, int):
+        exclude = [exclude]
+
+    if not isinstance(opt, dict) or 'independent_pores' not in opt:
+        # analyse the sparsity structure
+        adj = network.create_adjacency_matrix(weights=np.ones_like(network['throat.conns'], dtype=bool), fmt='csr')
+        pore_independent = []
+        list_pores_rem = np.arange(0, num_pores)
+        while len(list_pores_rem) > 0:
+            list_p_independent = list_pores_rem.copy()
+            i = 0
+            while i < len(list_p_independent):
+                p_loc = list_p_independent[i]
+                stencil_loc = set(adj.indices[adj.indptr[p_loc]:adj.indptr[p_loc+1]])
+                for _ in range(stencil_size):
+                    for adj_p in stencil_loc.copy():
+                        stencil_loc.update(adj.indices[adj.indptr[adj_p]:adj.indptr[adj_p+1]])
+                list_p_independent = [p for p in list_p_independent if p not in stencil_loc or p == p_loc]
+                i += 1
+            pore_independent.append(np.array(list_p_independent))
+            list_pores_rem = [p for p in list_pores_rem if p not in list_p_independent]
+        if isinstance(opt, dict):
+            opt['independent_pores'] = pore_independent
+            opt['adjacency_matrix'] = adj
+    else:
+        pore_independent = opt['independent_pores']
+        adj = opt['adjacency_matrix']
+
+    t_prep = time.perf_counter_ns() - tic
+    # prepare basic variables
+    if isinstance(dc, np.ndarray):
+        dc_arr = dc
+    else:
+        dc_arr = _compute_dc(c.reshape((-1, 1)), dc)         # perturbance values
+    G0 = defect_func(c).reshape((-1, 1))                 # reference defect
+    adj += scipy.sparse.eye(adj.shape[0], dtype=bool)    # to include self-dependency
+    shape_jac = (num_pores*Nc, num_pores*Nc)             # shape of the Jacobian
+    J = scipy.sparse.coo_matrix(shape_jac, dtype=dtype)  # initialize empty sparse matrix
+
+    # conduct the numerical differentiation in block of independent pores
+    # here we basically loop through each column of the Jacobian and exploit
+    # that the influence of perturbances is limited to some columns, indicated
+    # by the pore connectivity. This way, we can determine the influence of multiple
+    # perturbances in one run of the defect function, significantly reducing
+    # the computational cost
+    tic = time.perf_counter_ns()
+
+    # below is an implementation for a potential parallel optimization.
+    # however, the defect function does not update. Once the core issue is
+    # resolved, this could lead to speedup for large systems
+    # if parallelism > 1:
+    #     parallelism = min(parallelism, cpu_count())
+    # pool = Pool(parallelism)
+
+    # def inner_loop(i: int):
+    #     p_loc = pore_independent[i]
+    #     J_loc = scipy.sparse.coo_matrix(shape_jac, dtype=dtype)  # initialize empty sparse matrix
+    #     p_aff = np.hstack(tuple(adj.indices[adj.indptr[p]:adj.indptr[p+1]] for p in p_loc))
+    #     num_conn = np.array(np.sum(adj[p_loc] != 0, axis=1)).ravel()
+    #     for n in range(Nc):
+    #         if n in exclude:
+    #             continue
+    #         cols = p_loc * Nc + n
+    #         rows = p_aff * Nc + n
+    #         c_loc = c.reshape(-1, 1).copy()
+    #         c_loc[cols] += dc_arr[cols]
+    #         G_loc = defect_func(c_loc.reshape(c.shape)).reshape((-1, 1))
+    #         values = np.array((G_loc-G0)/dc).ravel()  # avoid potential type issues if a matrix is returned
+    #         values = values[rows]
+    #         cols = np.hstack([np.asarray(np.tile([cols[i]], reps=(num_conn[i]))).reshape(-1) for i in range(len(cols))]) # noqa: E501
+    #         J_loc += scipy.sparse.coo_matrix((values, (rows, cols)), shape=shape_jac, dtype=dtype)
+    #     return J_loc
+
+    # result = pool.map(inner_loop, range(len(pore_independent)))
+    # for J_loc in result:
+    #     J += J_loc
+    for p_loc in pore_independent:
+        p_aff = np.hstack(tuple(adj.indices[adj.indptr[p]:adj.indptr[p+1]] for p in p_loc))
+        num_conn = np.array(np.sum(adj[p_loc] != 0, axis=1)).ravel()
+        for n in range(Nc):
+            if n in exclude:
+                continue
+            cols = p_loc * Nc + n
+            rows = p_aff * Nc + n
+            c_loc = c.reshape(-1, 1).copy()
+            c_loc[cols] += dc_arr[cols]
+            G_loc = defect_func(c_loc.reshape(c.shape)).reshape((-1, 1))
+            values = np.array((G_loc-G0)/dc).ravel()  # avoid potential type issues if a matrix is returned
+            values = values[rows]
+            cols = np.hstack([np.asarray(np.tile([cols[i]], reps=(num_conn[i]))).reshape(-1) for i in range(len(cols))])
+            J += scipy.sparse.coo_matrix((values, (rows, cols)), shape=shape_jac, dtype=dtype)
+    J = scipy.sparse.csr_matrix(J)
+    t_diff = time.perf_counter_ns() - tic
+    print(f'prep: {t_prep*1e-9} s - diff: {t_diff*1e-9} s')
+    return J, G0
+
+
 def conduct_numerical_differentiation(c: np.ndarray, defect_func: Callable, dc: float = 1e-6, type: str = 'full',
-                                      exclude: int | list[int] | None = None, axis: int = None):
+                                      exclude: int | list[int] | None = None, axis: int = None,
+                                      network=None, stencil_size: int = 1, opt: dict | None = None):
     r"""
     Conducts numerical differentiation
 
@@ -251,6 +403,13 @@ def conduct_numerical_differentiation(c: np.ndarray, defect_func: Callable, dc: 
         component IDs for which the numerical differentiation shall not be conducted
     axis: int
         alternative to the `type` label for consistency with the mrm package
+    network: OpenPNM Network object
+        If provided, the sparsity structure of the network is exploited to speed up
+        the numerical differentiation. This option is only available for `type='full'`.
+        The network object is used to determine the sparsity
+        structure of the Jacobian.
+    stencil_size: int
+        number of additional adacent pores to include in the sparsity structure
 
     Returns
     -------
@@ -296,10 +455,19 @@ def conduct_numerical_differentiation(c: np.ndarray, defect_func: Callable, dc: 
                                                                       dc=dc_arr,
                                                                       exclude=exclude)
     elif type_l == 'full':
-        J, G_0 = _apply_numerical_differentiation_full(c=c,
-                                                       defect_func=defect_func,
-                                                       dc=dc_arr,
-                                                       exclude=exclude)
+        if network is not None:
+            J, G_0 = _apply_numerical_differentiation_exploit_sparsity(network=network,
+                                                                       c=c,
+                                                                       defect_func=defect_func,
+                                                                       dc=dc_arr,
+                                                                       stencil_size=1,
+                                                                       exclude=exclude,
+                                                                       opt=opt)
+        else:
+            J, G_0 = _apply_numerical_differentiation_full(c=c,
+                                                           defect_func=defect_func,
+                                                           dc=dc_arr,
+                                                           exclude=exclude)
     elif type_l == 'low_mem':
         J, G_0 = _apply_numerical_differentiation_lowmem(c=c,
                                                          defect_func=defect_func,
@@ -311,11 +479,51 @@ def conduct_numerical_differentiation(c: np.ndarray, defect_func: Callable, dc: 
 
 
 if __name__ == '__main__':  # pragma: no cover
+    import openpnm as op
+
+    # test sparsity exploiting version
+    shapes = [[5, 5, 5], [10, 10, 10], [20, 20, 20], [30, 30, 30]]
+
+    for shape in shapes:
+        Nc = 3
+        print(f'shape -> {shape} - Nc -> {Nc}: size -> {np.prod(shape)*Nc}')
+        c = np.ones((np.prod(shape), Nc), dtype=float)
+        pn = op.network.Cubic(shape=shape, spacing=1)
+        J_0 = pn.create_adjacency_matrix(weights=pn['throat.conns']+1, fmt='coo')
+        rows = np.hstack([J_0.row*Nc + n for n in range(Nc)])
+        cols = np.hstack([J_0.col*Nc + n for n in range(Nc)])
+        data = np.hstack([J_0.data * J_0.size * (n+1) for n in range(Nc)])
+        J_0 = scipy.sparse.coo_matrix((data, (rows, cols)), shape=(c.size, c.size), dtype=float)
+        J_0 += scipy.sparse.spdiags([np.arange(1, J_0.shape[0]+1)], [0], format='csr')
+
+        def Defect(c):
+            return J_0 * c.reshape((-1, 1))
+
+        opt = {}
+        tic = time.perf_counter_ns()
+        J, G = _apply_numerical_differentiation_exploit_sparsity(network=pn, c=c, defect_func=Defect, dc=1e-6, opt=opt)
+        toc = time.perf_counter_ns()
+        if J.nnz == J_0.nnz and np.all(J.indices == J_0.indices) and np.all(J.indptr == J_0.indptr):  # noqa: E501
+            err = np.max((J.data/J_0.data)-1)
+        else:
+            err = np.inf
+        print(f'runtime (init): {(toc-tic)*1e-9:1.2e} s - max error: {err}')
+
+        tic = time.perf_counter_ns()
+        J, G = _apply_numerical_differentiation_exploit_sparsity(network=pn, c=c, defect_func=Defect, dc=1e-6, opt=opt)
+        toc = time.perf_counter_ns()
+        if J.nnz == J_0.nnz and np.all(J.indices == J_0.indices) and np.all(J.indptr == J_0.indptr):  # noqa: E501
+            err = np.max((J.data/J_0.data)-1)
+        else:
+            err = np.inf
+        print(f'runtime (opt): {(toc-tic)*1e-9:1.2e} s - max error: {err}')
+
     sizes = [50, 100, 500, 1000, 2000, 5000]
 
     for size in sizes:
         print(f'size -> {size}')
-        c = np.ones((size, 3), dtype=float)
+        # c = np.ones((size, 3), dtype=float)
+        c = np.ones((size, 1), dtype=float)
 
         J_0 = np.arange(1., c.size+1, dtype=float)
         J_0 = np.tile(J_0, reps=[c.size, 1])
