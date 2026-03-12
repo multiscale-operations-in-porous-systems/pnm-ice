@@ -1,4 +1,4 @@
-from pnm_mctools import Calibration as CB
+from pnm_ice import Calibration as CB
 from math import pi
 import numpy as np
 import openpnm as op

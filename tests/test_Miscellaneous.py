@@ -1,10 +1,10 @@
 from math import pi
 from math import sqrt
 import openpnm as op
-import pnm_mctools.models.const_spheres_and_cylinders as geo_model     # noqa: E402
+import pnm_ice.models.const_spheres_and_cylinders as geo_model     # noqa: E402
 import numpy as np                                                     # noqa: E402
-from pnm_mctools.ToolSet import MulticomponentTools                    # noqa: E402
-from pnm_mctools.Miscellaneous import compute_pore_residence_time
+from pnm_ice.ToolSet import MulticomponentTools                    # noqa: E402
+from pnm_ice.Miscellaneous import compute_pore_residence_time
 
 
 def test_PoreResidenceTime(output=False):

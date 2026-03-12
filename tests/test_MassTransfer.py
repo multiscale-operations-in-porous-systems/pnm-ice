@@ -1,10 +1,10 @@
 import openpnm as op                                                  # noqa: E402
 import scipy, scipy.linalg, scipy.sparse                              # noqa: E401, E402
-import pnm_mctools.models.const_spheres_and_cylinders as geo_model    # noqa: E402
+import pnm_ice.models.const_spheres_and_cylinders as geo_model    # noqa: E402
 import numpy as np                                                    # noqa: E402
-from pnm_mctools.ToolSet import MulticomponentTools                   # noqa: E402
-import pnm_mctools.Operators as ops                                   # noqa: E402
-import pnm_mctools.BoundaryConditions as bc                           # noqa: E402
+from pnm_ice.ToolSet import MulticomponentTools                   # noqa: E402
+import pnm_ice.Operators as ops                                   # noqa: E402
+import pnm_ice.BoundaryConditions as bc                           # noqa: E402
 
 
 def test_MassTransfer():

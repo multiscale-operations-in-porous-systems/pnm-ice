@@ -1,7 +1,7 @@
 from typing import Callable, List, Any, Tuple
 import numpy as np
 import scipy
-from pnm_mctools import NumericalDifferentiation as num_diff
+from pnm_ice import NumericalDifferentiation as num_diff
 
 
 def _extract_and_sort_parameters(c: np.ndarray, network, Vp, a_v) -> Tuple[Any, int, int, np.ndarray, np.ndarray]:
