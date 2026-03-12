@@ -1,4 +1,4 @@
-# pnm-mctools
+# PNM-ICE
 This repository is intended as an extension of the OpenPNM framework for convenient implementation of multicomponent models. It consists of the following parts:
 - A tool set based on an OpenPNM network or compatible object
 - A Numerical differentiation algorithm
@@ -17,10 +17,11 @@ where the rates $`Q_i`$ are considered directional with direction $`\vec{n}_i`$.
 ```
 at pore $`i`$, its neighbors $`j`$ and the conductance $`g`$. This toolset now allows us to use following implementation:
 ```python
-from pnm_mctools import Operators as ops
-# Assume that an instance of mctools 'mctool' has been setup before:
-delta = ops.delta(mctool)
-sum = ops.sum(mctool)
+from pnm_ice import MulticomponentTools
+from pnm_ice import Operators as ops
+mt = MulticomponentTools(network=pn)
+delta = ops.delta(mt)
+sum = ops.sum(mt)
 # then the Jacobian can be formulated as:
 J = sum(g, delta)
 ```
@@ -41,7 +42,20 @@ for n in range(num_iterations):
    if not np.any(np.abs(G) > tol):          # check for convergence
        break
 ```
-
+This toolset also supports Pore Network Modeling with Implicitly Coupled Equations (PNM-ICE). To activate this feature, the number of components has to be provided
+to the `Multicomponents` instance. The remaining operators are automatically configured:
+```python
+from pnm_ice import MulticomponentTools
+from pnm_ice import Operators as ops
+Nc = 3                                                   # number of implicitly coupled components
+D = [1e-5, 2e-5, 1.5e-5]                                 # three different diffusion coefficients
+mt = MulticomponentTools(network=pn, num_components=Nc)  # activate the multicomponent features
+delta = ops.delta(mt)
+sum = ops.sum(mt)
+# then the Jacobian can be formulated as:
+J = sum(D, delta)
+```
+For further details, have a look at the section below and the documentation.
 ## Installation
 This package can be installed using pip, e.g. by typing:
 ```bash
@@ -60,14 +74,14 @@ Right now, there are no dedicated examples available in the repository. For a st
 ## The toolset
 The very first step to access the functionality consists by importing the `MulticomponentTools` and creating an instance:
 ```python
-from pnm_mctools import MulticomponentTools
+from pnm_ice import MulticomponentTools
 # define an OpenPNM network 'pn' with a number of coupled components 'Nc'
 mt = MulticomponentTools(network=pn, num_components=Nc)
 ```
 Where the OpenPNM network has $`N_p`$ pores and $`N_t`$ throats. This is the minimal setup, then no boundary conditions will be applied to the system. In practice that means that no manipulation of the matrices or defects is conducted, leading to a no-flux boundary condition for boundary pores. In case we want to apply boundary conditions, we have to do the following:
 ```python
-from pnm_mctools import MulticomponentTools
-from pnm_mctools import BoundaryConditions as bc
+from pnm_ice import MulticomponentTools
+from pnm_ice import BoundaryConditions as bc
 # define an OpenPNM network 'pn' with two coupled components
 mt = MulticomponentTools(network=pn, num_components=2)
 bc.set(mt, id=0, label='left', bc={'prescribed': 1.}      # boundary condition for component 0 at pores with the label 'left'
@@ -152,8 +166,8 @@ for n in range(num_tsteps):
 ### Boundary conditions
 The boundary pores of a network are identified by a dedicated label, e.g. 'left' or 'inlet'. For each set of pores associated with a label, boundary conditions need to be applied for each component. Each boundary condition is provided to the MulticomponentTools instance:
 ```python
-from pnm_mctools import MulticomponentTools
-from pnm_mctools import BoundaryConditions as bc
+from pnm_ice import MulticomponentTools
+from pnm_ice import BoundaryConditions as bc
 ...
 mt = MulticomponentTools(....)
 bc.set(mt, label='label1', bc = {'type1': value1})
@@ -161,8 +175,8 @@ bc.set(mt, label='label2', bc = {'type2': value2})
 ```
 And in the case of multiple components, we can provide a component ID:
 ```python
-from pnm_mctools import MulticomponentTools
-from pnm_mctools import BoundaryConditions as bc
+from pnm_ice import MulticomponentTools
+from pnm_ice import BoundaryConditions as bc
 ...
 mt = MulticomponentTools(....)
 bc.set(mt, id=0, label='label1', bc = {'type1': value1})
@@ -184,7 +198,7 @@ J = \frac{\partial G}{\partial x} \approx \frac{G(x+\Delta x) - G(x)}{\Delta x}
 ```
 The big advantage here is, that we can avoid the cumbersome derivation of the (non-linear) defect $`G`$. However, this comes with increased runtime-costs. The here provided functionality exploits a few tricks to reduce the runtime penalty. In the simplest case you can call it by:
 ```python
-from pnm_mctools import NumericalDifferentiation as numdiff
+from pnm_ice import NumericalDifferentiation as numdiff
 def Defect(c):
     # define a defect function here
     # Note, that may have the same shape as the input array c 
@@ -239,7 +253,7 @@ A \longrightarrow B + C
 ```
 This toolset provides a prepared solution:
 ```python
-from pnm_mctools.Reactions import LinearReaction
+from pnm_ice.Reactions import LinearReaction
 
 # set up a network ...
 k = 1e2
@@ -256,7 +270,7 @@ In the case of linear adsorption of a single component, an optimized function is
 ## IO
 The IO functionality is independent of the Toolset and contained in the IO.py file and can be imported as:
 ```python
-from pnm_mctools import IO
+from pnm_ice import IO
 ```
 The most important functions here are:
 - network_to_vtk: similar function as `project_to_vtk` of OpenPNM allowing for convenient addition of data values to the output
