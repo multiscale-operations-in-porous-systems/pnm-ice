@@ -1,10 +1,10 @@
 from math import pi
 from math import sqrt
 import openpnm as op
-import pnm_mctools.models.const_spheres_and_cylinders as geo_model     # noqa: E402
+import pnm_ice.models.const_spheres_and_cylinders as geo_model     # noqa: E402
 import numpy as np                                                     # noqa: E402
-from pnm_mctools.ToolSet import MulticomponentTools                    # noqa: E402
-from pnm_mctools.TaylorArisDispersion import Coefficient as TACoef
+from pnm_ice.ToolSet import MulticomponentTools                    # noqa: E402
+from pnm_ice.TaylorArisDispersion import Coefficient as TACoef
 
 
 def test_TaylorArisDispersion(output=False):

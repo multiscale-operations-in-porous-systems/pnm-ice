@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 import openpnm as op
-from pnm_mctools import NumericalDifferentiation as nd
+from pnm_ice import NumericalDifferentiation as nd
 
 
 def test_dense():

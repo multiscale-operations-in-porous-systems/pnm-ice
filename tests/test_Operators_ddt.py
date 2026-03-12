@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import scipy
 import openpnm as op
-from pnm_mctools import Operators as ops
+from pnm_ice import Operators as ops
 
 
 @pytest.fixture

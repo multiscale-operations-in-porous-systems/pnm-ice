@@ -1,7 +1,7 @@
 from typing import List, Tuple, Any
 import numpy as np
 import scipy
-from pnm_mctools import ToolSet as ts
+from pnm_ice import ToolSet as ts
 
 
 def unpack_network(network, Nc, include, exclude) -> Tuple[Any, int, int, int, Any]:

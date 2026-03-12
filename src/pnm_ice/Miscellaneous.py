@@ -1,7 +1,7 @@
 from math import pi
 import numpy as np
-from pnm_mctools.ToolSet import _compute_flux_matrix, MulticomponentTools
-from pnm_mctools import Operators as ops
+from pnm_ice.ToolSet import _compute_flux_matrix, MulticomponentTools
+from pnm_ice import Operators as ops
 
 
 def compute_rates(mc: MulticomponentTools, *args):

@@ -1,7 +1,7 @@
 from typing import Tuple, Any, Set
 import scipy
 import numpy as np
-from pnm_mctools import ToolSet as ts
+from pnm_ice import ToolSet as ts
 
 
 def unpack_info(network, bc) -> Tuple[Any, int, int, Any]:

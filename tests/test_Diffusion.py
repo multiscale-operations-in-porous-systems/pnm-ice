@@ -2,10 +2,10 @@ import numpy as np                                        # noqa: E402
 import scipy                                              # noqa: E402
 import math                                               # noqa: E402
 import openpnm as op                                      # noqa: E402
-from pnm_mctools.models import const_spheres_and_cylinders as geo_model    # noqa: E402
-from pnm_mctools import ToolSet as ts                     # noqa: E402
-import pnm_mctools.Operators as ops                       # noqa: E402
-import pnm_mctools.BoundaryConditions as bc               # noqa: E402
+from pnm_ice.models import const_spheres_and_cylinders as geo_model    # noqa: E402
+from pnm_ice import ToolSet as ts                     # noqa: E402
+import pnm_ice.Operators as ops                       # noqa: E402
+import pnm_ice.BoundaryConditions as bc               # noqa: E402
 
 
 def test_Diffusion(output: bool = False):

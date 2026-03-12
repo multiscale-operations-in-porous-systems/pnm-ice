@@ -3,7 +3,7 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pnm_mctools"
+name = "pnm_ice"
 dynamic = ["version", "dependencies"]
 
 requires-python = ">= 3.9"
@@ -28,7 +28,7 @@ classifiers = [
 dependencies = { file = ["requirements.txt"]}
 
 [tool.setuptools_scm]
-write_to = "src/pnm_mctools/_version.py"
+write_to = "src/pnm_ice/_version.py"
 
 [project.urls]
 Homepage = "https://github.com/hpc-dave/pnm-mctools"

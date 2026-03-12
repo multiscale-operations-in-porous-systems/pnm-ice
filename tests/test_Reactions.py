@@ -2,7 +2,7 @@ import pytest
 import scipy
 import numpy as np
 import openpnm as op
-from pnm_mctools import Reactions
+from pnm_ice import Reactions
 
 
 @pytest.fixture
