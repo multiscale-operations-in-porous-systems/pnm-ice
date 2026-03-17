@@ -59,13 +59,13 @@ For further details, have a look at the section below and the documentation.
 ## Installation
 This package can be installed using pip, e.g. by typing:
 ```bash
-python -m pip install git+https://github.com/hpc-dave/pnm-mctools.git
+python -m pip install git+https://github.com/multiscale-operations-in-porous-systems/pnm-ice.git
 ```
 For Conda environments, it can be necessary to have a C++ compiler available. If you run into issues, try the following:
 ```bash
 conda config --add channels conda-forge
 conda install gxx
-python -m pip install git+https://github.com/hpc-dave/pnm-mctools.git
+python -m pip install git+https://github.com/multiscale-operations-in-porous-systems/pnm-ice.git
 ```
 
 ## Examples
