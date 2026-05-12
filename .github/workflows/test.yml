@@ -25,7 +25,7 @@ jobs:
       run: git config --global --add safe.directory .
     - name: run unit tests
       run: |
-         python -m pip install -e .
+         python -m pip install .
          pytest --cov=. --import-mode=importlib --cov-report=html --cov-report=xml --cov-config=.coveragerc
 
     - name: Archive Reports
