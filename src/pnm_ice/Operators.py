@@ -46,7 +46,7 @@ def unpack_network(network, Nc, include, exclude) -> Tuple[Any, int, int, int, A
 def ddt(c: np.ndarray | Any | None = None,
         network=None,
         dt: float = 1.,
-        weight: np.ndarray | str = 'pore.volume',
+        weight: np.ndarray | str | None = None,
         include: int | List[int] | None = None,
         exclude: int | List[int] | None = None,
         Nc: int | None = None):
@@ -61,10 +61,9 @@ def ddt(c: np.ndarray | Any | None = None,
             openpnm network or MulticomponentTools
         dt: float
             discretized time step size
-        weight: np.ndarray|str
-            a weight which can be applied to the time derivative, usually that should be
-            the volume of the computational cell, the string is only allowed if an instance of
-            MulticomponentTools is provided
+        weight: np.ndarray|str|None
+            a weight which can be applied to the time derivative,
+            the string is only allowed if an instance of MulticomponentTools is provided
         include: int|list[int]|None
             an ID or list of IDs which should be included in the matrix, if 'None' is provided,'
             all values will be used
@@ -96,10 +95,15 @@ def ddt(c: np.ndarray | Any | None = None,
         if network is None:
             raise ValueError('the provided network is not specified and the c-array is also not helpful, cannot continue')  # noqa: E501
         net, Np, _, Nc, include = unpack_network(network=network, Nc=Nc, include=include, exclude=exclude)
-        if isinstance(weight, str):
-            weight_l = net[weight]
-        else:
-            weight_l = weight
+        match weight:
+            case str():
+                weight_l = net[weight]
+            case np.ndarray():
+                weight_l = weight
+            case None:
+                weight_l = np.ones((Np, 1), dtype=float)
+            case _:
+                raise ValueError('Invalid weight type')
 
     if dt <= 0.:
         raise ValueError(f'timestep is invalid, following constraints were violated: {dt} !> 0')
@@ -108,22 +112,23 @@ def ddt(c: np.ndarray | Any | None = None,
 
     include = ts.get_include(Nc=Nc, include=include, exclude=exclude)
 
-    dVdt = weight_l.copy()
-    dVdt /= dt
+    ddt = weight_l.copy()
+    ddt /= dt
 
-    dVdt = dVdt.reshape((-1, 1))
+    ddt = ddt.reshape((-1, 1))
     if Nc > 1:
-        if dVdt.size == Np:
-            dVdt = np.tile(A=dVdt, reps=Nc)
+        if ddt.size == Np:
+            ddt = np.tile(A=ddt, reps=Nc)
         if include is not None:
             mask = np.asarray([n in include for n in range(Nc)], dtype=bool).reshape((1, -1))
             mask = np.tile(A=mask, reps=(Np, 1))
-            dVdt[~mask] = 0.
-    ddt = scipy.sparse.spdiags(data=[dVdt.ravel()], diags=[0])
+            ddt[~mask] = 0.
+    ddt = scipy.sparse.spdiags(data=[ddt.ravel()], diags=[0])
     return ddt
 
 
 def sum(network,
+        volume: str | np.ndarray = 'pore.volume',
         include: int | List[int] | None = None,
         exclude: int | List[int] | None = None,
         Nc: int | None = None) -> ts.SumObject:
@@ -135,6 +140,8 @@ def sum(network,
         network
             An instance with similar signatures as a MulticomponentTools or OpenPNM network object
             In the case of an OpenPNM network, the argument Nc has to be specified
+        volume: str | np.ndarray
+            The volume of each pore
         include: int|list[int]|None
             identifier, which components should be included in the divergence, all other
             rows will be set to 0
@@ -161,6 +168,8 @@ def sum(network,
         ]
         Then the fluxes are directed from pore 0 to 1, 1 to 2 and 2 to 3. A potential network could be:
         (0) -> (1) -> (2) -> (3)
+        The local transport equation is considered to be divided by the pore volume,
+        to simplify the implementation of the time derivative and source terms
     """
 
     net, Np, Nt, Nc, include = unpack_network(network=network, Nc=Nc, include=include, exclude=exclude)
@@ -169,6 +178,16 @@ def sum(network,
     weights = np.append(-weights, weights)
 
     sum_mat = net.create_incidence_matrix(weights=weights, fmt='coo')
+    match volume:
+        case str():
+            vol = net[volume]
+        case np.ndarray:
+            vol = volume
+        case _:
+            raise ValueError('The provided volume has to be either a string or an array!')
+    assert vol.size == Np, 'The provided volume has to have the same size as the number of pores in the network!'
+    sum_mat = scipy.sparse.coo_matrix(scipy.sparse.spdiags(1./vol.reshape(-1), 0, Np, Np) @ sum_mat)
+
     if Nc > 1:
         if include is None:
             include = range(Nc)
@@ -181,7 +200,7 @@ def sum(network,
         for n in include:
             rows[:, pos] = sum_mat.row * Nc + n
             cols[:, pos] = sum_mat.col * Nc + n
-            data[:, pos] = weights
+            data[:, pos] = sum_mat.data
             pos += 1
         rows = np.ndarray.flatten(rows)
         cols = np.ndarray.flatten(cols)

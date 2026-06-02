@@ -9,7 +9,7 @@ def LinearReaction(network,
                    component: int | None = None,
                    educt: int | None = None,
                    product=None,
-                   weight='pore.volume'):
+                   weight=None):
     r"""
     A convenience function to provide an implicit source term based on a linear reaction
 
@@ -29,7 +29,7 @@ def LinearReaction(network,
     k: any
         constant reaction rate coefficient, can be single value or array of size [Np,]
     weight: any
-        pore based factor for multiplication, by default the pore volume is used, can be a list of weights
+        pore based factor for multiplication, can be a list of weights
 
     Returns
     -------

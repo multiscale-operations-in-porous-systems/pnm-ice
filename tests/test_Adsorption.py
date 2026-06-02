@@ -147,7 +147,7 @@ def test_single_Langmuir(output: bool = False):
     def ComputeSystem(x, c_l, c_old, stype):
         J_ads, G_ads = ads.multi_component(c=c_l, c_old=c_old,
                                            component_id=id_ads,
-                                           Vp=network['pore.volume'], a_v=a_V,
+                                           a_v=a_V,
                                            theta_func=theta_Langmuir,
                                            stype=stype, dc=1e-6, dt=dt)
         G = ddt * (x - x_old) + G_ads + G_source
@@ -428,3 +428,7 @@ def test_single_Langmuir(output: bool = False):
 #         print(f'{last_iter + 1} it [{G_norm:1.2e}]\
 #             mass-loss [{err:1.2e}] isotherm-error [{err_ads:1.2e}]')
 #     return success
+
+if __name__ == '__main__':
+    test_single_linear(output=True)
+    test_single_Langmuir(output=True)

@@ -93,3 +93,7 @@ def test_Diffusion(output: bool = False):
             print(f'{t}/{len(tsteps)} - {time:1.2f}: {last_iter + 1} it [{G_norm:1.2e}]\
                 err [{np.max(np.abs(err[:, 0])):1.2e} {np.max(np.abs(err[:, 1])):1.2e}]')
         time += dt
+
+
+if __name__ == '__main__':
+    test_Diffusion(output=True)

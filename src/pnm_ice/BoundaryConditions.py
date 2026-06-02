@@ -147,7 +147,7 @@ def apply_prescribed(pore_labels, bc, num_components: int, n_c: int, A, x, b, ty
     return A, b
 
 
-def apply_rate(pore_labels, bc, num_components: int, n_c: int, A, x, b, type: str):
+def apply_rate(pore_labels, bc, num_components: int, n_c: int, A, x, b, type: str, volume: np.ndarray):
     r"""
     Enforces rate boundary conditions to the provided matrix and/or rhs vector
 
@@ -170,6 +170,10 @@ def apply_rate(pore_labels, bc, num_components: int, n_c: int, A, x, b, type: st
     type: str
         type of algorithm/affected part of the LES, special treatments are required
         if the defect for Newton-Raphson iterations is computed
+    volume: np.ndarray
+        array of size [Np] with the pore volumes, required for the correct implementation of the
+        rate BCs, since the rate is applied as a source term to the pore
+        and therefore needs to be normalized by the pore volume to be consistent with the rest of the LES
 
     Notes
     -----
@@ -186,7 +190,7 @@ def apply_rate(pore_labels, bc, num_components: int, n_c: int, A, x, b, type: st
     else:
         values = value
 
-    b[row_aff] -= values.reshape((-1, 1))
+    b[row_aff] -= values.reshape((-1, 1)) / volume[pore_labels].reshape((-1, 1))
 
     return A, b
 
@@ -369,7 +373,7 @@ def apply(network, bc=None, A=None, x=None, b=None, type='Jacobian'):
                                   bc=param,
                                   num_components=num_components, n_c=n_c,
                                   A=A, x=x, b=b,
-                                  type=type)
+                                  type=type, volume=net['pore.volume'])
             elif 'outflow' in param:
                 A, b = apply_outflow(pore_labels=bc_pores,
                                      bc=param,

@@ -44,7 +44,7 @@ def defect_reac(V, c):
     k = 1
     c_corr = np.copy(c)
     c_corr[c_corr < 0] = c_corr[c_corr < 0] **2
-    r = k * c_corr[:, 0]**2 * c_corr[:, 1] * V.reshape(-1)
+    r = k * c_corr[:, 0]**2 * c_corr[:, 1]
     G = np.zeros_like(c)
     G[:, 0] = -r
     G[:, 1] = -r

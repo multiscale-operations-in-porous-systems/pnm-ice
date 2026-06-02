@@ -102,3 +102,6 @@ def test_convection(output: bool = False):
             print(f'{t}/{len(tsteps)} - {time}: {last_iter + 1} it -\
                 G [{G_norm:1.2e}] mass [{mass_err:1.2e}] peak-err [{peakpos_err}]')
         time += dt
+
+if __name__ == '__main__':
+    test_convection(output=True)

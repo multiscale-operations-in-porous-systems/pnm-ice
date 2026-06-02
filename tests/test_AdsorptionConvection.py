@@ -164,8 +164,7 @@ def test_convection_Langmuir(output: bool = True):
                                            dt=dt,
                                            component_id=id_ads,
                                            network=mt,
-                                           a_v=a_V,
-                                           Vp='pore.volume')
+                                           a_v=a_V)
         return J_ads, G_ads
 
     c = np.zeros((network.Np, Nc))
@@ -206,3 +205,7 @@ def test_convection_Langmuir(output: bool = True):
         pulse_out[n] = c[-2, id_ads]
 
     pulse_dict[f'K={K_ads} - ymax={y_max}'] = pulse_out.copy()
+
+if __name__ == '__main__':
+    test_convection_linear(output=True)
+    test_convection_Langmuir(output=True)
