@@ -6,12 +6,21 @@ This repository is intended as an extension of the OpenPNM framework for conveni
 - Additional IO functionality
 
 ## Basic Principle
-Here we follow the Finite Volume approach for discretization, where the rates are balanced over the throats. 
-For example transient diffusion-advection transport of a scalar species with first order reaction with reaction rate $`k_r`$ is expressed as:
+The generic reaction-diffusion-advection transport equation of a component $`\phi`$  in a pore network is formulated as: 
 ```math
-\int_V \frac{\partial}{\partial t} \phi \mathrm{d}V + \sum_i \vec{n}_i Q_{conv, i} + \sum_i \vec{n}_i Q_{diff, i} = \int_V k_r \phi \mathrm{d}V
+\frac{\partial}{\partial t} \phi V_{p,i} + \sum_i \vec{n}_i Q_{conv, i} + \sum_i \vec{n}_i Q_{diff, i} = r(\phi) V_{p,i}
 ```
-where the rates $`Q_i`$ are considered directional with direction $`\vec{n}_i`$. A key concept for the discretization of the equations is the use of oriented graphs, here expressed with $`\vec{n}_i`$, as it allows convient formulation of a $`\sum`$ (sum, transpose of the oriented incidence matrix) and $`\Delta`$ (delta, oriented incidence matrix) operator. As an example, consider the following common computation of steady-state hydrodynamics:
+where the rates $`Q_i`$ are considered directional with direction $`\vec{n}_i`$. A key concept for the discretization of the equations is the use of oriented graphs, here expressed with $`\vec{n}_i`$, as it allows convient formulation of a $`\sum`$ (sum, transpose of the oriented incidence matrix) and $`\Delta`$ (delta, oriented incidence matrix) operator.
+
+**IMPORTANT**
+For later convenience, we divide the equation by the (local!) pore volume and integrate this into the sum operator:
+```math
+\frac{\partial}{\partial t} \phi + \frac{\sum_i}{V_{p,i}} \vec{n}_i Q_{conv, i} + \frac{\sum_i}{V_{p,i}} \vec{n}_i Q_{diff, i} = r(\phi)
+```
+This may now look confusing, however it renders later formulation of the transport equations a lot simpler, since we have it already integrated implicitly in the sum operator. As regular user, you probably can forget about it, however for debugging of the linear equation system, this may be initially confusing.
+
+
+As an example, consider the following common computation of steady-state hydrodynamics:
 ```math
 \sum_j g \Delta P_{ij} = 0
 ```
@@ -84,10 +93,10 @@ from pnm_ice import MulticomponentTools
 from pnm_ice import BoundaryConditions as bc
 # define an OpenPNM network 'pn' with two coupled components
 mt = MulticomponentTools(network=pn, num_components=2)
-bc.set(mt, id=0, label='left', bc={'prescribed': 1.}      # boundary condition for component 0 at pores with the label 'left'
-bc.set(mt, id=0, label='right', bc={'prescribed': 0.}     # boundary condition for component 0 at pores with the label 'right'
-bc.set(mt, id=1, label='left', bc={'prescribed': 0.}      # boundary condition for component 1 at pores with the label 'left'
-bc.set(mt, id=1, label='right', bc={'prescribed': 1.}     # boundary condition for component 1 at pores with the label 'right'
+bc.set(mt, id=0, label='left', bc={'prescribed': 1.})      # boundary condition for component 0 at pores with the label 'left'
+bc.set(mt, id=0, label='right', bc={'prescribed': 0.})     # boundary condition for component 0 at pores with the label 'right'
+bc.set(mt, id=1, label='left', bc={'prescribed': 0.})      # boundary condition for component 1 at pores with the label 'left'
+bc.set(mt, id=1, label='right', bc={'prescribed': 1.})     # boundary condition for component 1 at pores with the label 'right'
 ```
 For more details have a look at the dedicated section.
 Now we have everything set up and can start actually using the tools. Currently supported functionality is:
