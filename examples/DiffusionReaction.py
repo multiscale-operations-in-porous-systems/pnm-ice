@@ -34,9 +34,7 @@ bc.set(mt, label='left', id=1, bc=0.)
 bc.set(mt, label='right', id=0, bc=0.)
 bc.set(mt, label='right', id=1, bc=1.)
 
-x = np.ndarray.flatten(c).reshape((c.size, 1))
-dx = np.zeros_like(x)
-
+x = np.ndarray.flatten(c).reshape(-1, 1)
 
 pos = 0
 tol = 1e-6
@@ -74,7 +72,7 @@ for i in range(max_iter):
     print(f'{last_iter + 1} it - G: {G_norm}')
     if G_norm < tol:
         break
-    dx[:] = scipy.sparse.linalg.spsolve(J, -G).reshape(dx.shape)
+    dx = scipy.sparse.linalg.spsolve(J, -G).reshape(-1, 1)
     x = x + dx
     x[x < 0] = 0
 
