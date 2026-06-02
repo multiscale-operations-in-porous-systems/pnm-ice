@@ -40,7 +40,7 @@ pos = 0
 tol = 1e-6
 max_iter = 100
 
-def defect_reac(V, c):
+def defect_reac(c):
     k = 1
     c_corr = np.copy(c)
     c_corr[c_corr < 0] = c_corr[c_corr < 0] **2
@@ -61,7 +61,7 @@ J_diff = sum(D, grad)
 for i in range(max_iter):
     pos += 1
     J_r, G_r = conduct_numerical_differentiation(c=x.reshape(-1, Nc),
-                                                 defect_func = lambda x: defect_reac(mt.get_network()['pore.volume'], x),
+                                                 defect_func = defect_reac,
                                                  type='constrained')
     J = J_diff + J_r
     J = bc.apply(mt, A=J)
