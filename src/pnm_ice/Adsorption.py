@@ -4,7 +4,7 @@ import scipy
 from pnm_ice import NumericalDifferentiation as num_diff
 
 
-def _extract_and_sort_parameters(c: np.ndarray, network, Vp, a_v) -> Tuple[Any, int, int, np.ndarray, np.ndarray]:
+def _extract_and_sort_parameters(c: np.ndarray, network, a_v) -> Tuple[Any, int, int, np.ndarray]:
     r"""
     Helper function to determine common parameters used in adsorption models from input values
 
@@ -14,8 +14,6 @@ def _extract_and_sort_parameters(c: np.ndarray, network, Vp, a_v) -> Tuple[Any, 
         array with variables in the form [Np, Nc]
     network
         an object similar to a dict, an OpenPNM network or a MulticomponentTools class
-    Vp
-        pore volume array, string identifier or None
     a_v
         specific surface area
 
@@ -27,17 +25,13 @@ def _extract_and_sort_parameters(c: np.ndarray, network, Vp, a_v) -> Tuple[Any, 
     net = network.get_network() if hasattr(network, 'get_network') else network
     Np = c.shape[0]
     Nc = 1 if len(c.shape) == 1 else c.shape[1]
-    if Vp is None:
-        V_pore = np.ones((Np, 1), dtype=float)
-    else:
-        V_pore = Vp if isinstance(Vp, np.ndarray) else net[Vp]
 
     if a_v is None:
         spec_surf = np.ones((Np, 1), dtype=float)
     else:
         spec_surf = a_v if isinstance(a_v, np.ndarray) else net[a_v]
 
-    return net, Np, Nc, V_pore.reshape((Np, -1)), spec_surf.reshape((Np, -1))
+    return net, Np, Nc, spec_surf.reshape((Np, -1))
 
 
 def Linear(c_f, K):
@@ -108,7 +102,6 @@ def single_linear(c, c_old,
                   K_func: Callable,
                   dt: float,
                   component_id: int | List[int] | None = None,
-                  Vp: np.ndarray | str | None = 'pore.volume',
                   a_v: np.ndarray | str | None = 'pore.specific_surface_area',
                   network=None,
                   stype: str = 'Jacobian'):
@@ -129,9 +122,6 @@ def single_linear(c, c_old,
         equilibrium value of adsorbed species, the arrays are of size [Np, 1]
     component_id: int| List[int] | None
         component ID of  dilute species, by default all species will be included
-    Vp: np.ndarray | str | None
-        pore volume volume for scaling (usually in m^3),
-        if a string is provided it will query the value from the network
     a_v: np.ndarray | str| None
         specific surface area (usually in m^2/m^3),
         if a string is provided it will query the value from the network
@@ -169,7 +159,7 @@ def single_linear(c, c_old,
         raise ValueError(f'Unknown type for the computation: {stype} - allowed: {["jacobian", "defect", "direct"]}')
 
     A, b = None, None
-    _, Np, Nc, V_pore, sp_surf = _extract_and_sort_parameters(c=c, network=network, Vp=Vp, a_v=a_v)
+    _, Np, Nc, sp_surf = _extract_and_sort_parameters(c=c, network=network, a_v=a_v)
 
     if component_id is None:
         c_id = range(Nc)
@@ -187,7 +177,7 @@ def single_linear(c, c_old,
     # so later we can use both components or simply add them up to get the defect
     b[:, c_id, 0] = K_func(c[:, c_id]).reshape((Np, -1)) * c[:, c_id]
     b[:, c_id, 1] = -K_func(c_old[:, c_id]).reshape((Np, -1)) * c_old[:, c_id]
-    b[:, c_id, :] = np.multiply(b[:, c_id, :], np.expand_dims(sp_surf * V_pore / dt, axis=2))
+    b[:, c_id, :] = np.multiply(b[:, c_id, :], np.expand_dims(sp_surf / dt, axis=2))
 
     if (stype == 'jacobian') or (stype == 'direct'):
         A = scipy.sparse.spdiags(data=[b[:, :, 0].ravel()], diags=[0], format='csr')
@@ -214,7 +204,6 @@ def multi_component(c, c_old,
                     theta_func: Callable,
                     dt: float,
                     component_id: int | List[int] | None = None,
-                    Vp: np.ndarray | None = None,
                     a_v: np.ndarray | None = None,
                     network=None,
                     stype: str = 'Jacobian',
@@ -237,9 +226,6 @@ def multi_component(c, c_old,
         equilibrium value of adsorbed species, the arrays are of size [Np, 1]
     component_id: int| List[int] | None
         component ID of  dilute species, by default all species will be included
-    Vp: np.ndarray | str | None
-        pore volume volume for scaling (usually in m^3),
-        if a string is provided it will query the value from the network
     a_v: np.ndarray | str| None
         specific surface area (usually in m^2/m^3),
         if a string is provided it will query the value from the network
@@ -280,9 +266,9 @@ def multi_component(c, c_old,
         raise ValueError(f'Unknown type for the computation: {stype} - allowed types: {["jacobian", "defect"]}')
 
     A, b = None, None
-    _, _, Nc, V_pore, sp_surf = _extract_and_sort_parameters(c=c, network=network, Vp=Vp, a_v=a_v)
+    _, _, Nc, sp_surf = _extract_and_sort_parameters(c=c, network=network, a_v=a_v)
 
-    alpha = np.multiply(V_pore, sp_surf/dt)
+    alpha = np.divide(sp_surf, dt)
 
     if component_id is None:
         c_id = range(Nc)

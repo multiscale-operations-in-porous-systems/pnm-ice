@@ -44,7 +44,10 @@ def test_sum_pseudo1D_build(network_pseudo1D):
     sum_coo = scipy.sparse.coo_matrix(sum.matrix)
 
     data = np.ones((Nt*Nc))
-    sum_comp = scipy.sparse.diags([data, -data], offsets=[0, -2], shape=(Np*Nc, Nt*Nc), format='coo', dtype=float)
+    sum_comp = scipy.sparse.diags([data, -data], offsets=[0, -2], shape=(Np*Nc, Nt*Nc), format='csr', dtype=float)
+    vol_weight = np.tile(network_pseudo1D['pore.volume'].reshape(-1, 1), reps=(1, Nc)).reshape(-1)
+    sum_comp = scipy.sparse.spdiags(1./vol_weight, 0, Np*Nc, Np*Nc).tocsr() @ sum_comp
+    sum_comp = scipy.sparse.coo_matrix(sum_comp)
 
     err_max = np.max(np.abs(sum_comp - sum_coo))
 
@@ -71,9 +74,10 @@ def test_sum_with_rates(network):
     for n in range(Nc):
         for i in range(Np):
             sum_comp[i, n] = np.sum(rates[conns[:, 0] == i, n]) - np.sum(rates[conns[:, 1] == i, n])
+            sum_comp[i, n] /= network['pore.volume'][i]
 
     err_max = np.max(np.abs(sum_rates-sum_comp))
-    assert err_max == 0.
+    assert err_max < np.min(np.abs(sum_comp))*1e-10
 
 
 def test_sum_exclude(network):
@@ -90,3 +94,7 @@ def test_sum_exclude(network):
     mask[rows] = True
 
     assert sum.matrix[mask, :].nnz == 0
+
+
+if __name__ == '__main__':
+    pytest.main()

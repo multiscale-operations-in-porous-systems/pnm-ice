@@ -2,6 +2,7 @@ from math import pi
 import numpy as np
 from pnm_ice.ToolSet import _compute_flux_matrix, MulticomponentTools
 from pnm_ice import Operators as ops
+import scipy
 
 
 def compute_rates(mc: MulticomponentTools, *args):
@@ -135,6 +136,8 @@ def compute_pore_residence_time(Q: np.ndarray,
             Vp = network.get_network()[Vp]
         else:
             Vp = network[Vp]
+
+    A_dir = scipy.sparse.spdiags(Vp.reshape(-1), 0, Vp.size, Vp.size).tocsr() * A_dir.matrix   # remember, that the sum operator is already normalized by the pore volume, so we need to multiply it back here # noqa: E501
 
     approach_options = ['inflow', 'outflow', 'min']
     if approach not in approach_options:

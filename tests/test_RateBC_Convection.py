@@ -88,3 +88,6 @@ def test_RateBC_Convection(output: bool = False):
             print(f'{t}/{len(tsteps)} - {time}: {last_iter + 1} it -\
                 G [{G_norm:1.2e}] mass [{mass_err[0]:1.2e} {mass_err[1]:1.2e}]')
         time += dt
+
+if __name__ == '__main__':
+    test_RateBC_Convection(output=True)
