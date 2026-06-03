@@ -137,7 +137,7 @@ def compute_pore_residence_time(Q: np.ndarray,
         else:
             Vp = network[Vp]
 
-    A_dir = scipy.sparse.spdiags(Vp.reshape(-1), 0, Vp.size, Vp.size).tocsr() * A_dir.matrix   # remember, that the sum operator is already normalized by the pore volume, so we need to multiply it back here
+    A_dir = scipy.sparse.spdiags(Vp.reshape(-1), 0, Vp.size, Vp.size).tocsr() * A_dir.matrix   # remember, that the sum operator is already normalized by the pore volume, so we need to multiply it back here # noqa: E501
 
     approach_options = ['inflow', 'outflow', 'min']
     if approach not in approach_options:
