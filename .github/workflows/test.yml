@@ -22,7 +22,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+    - name: add safe directory
+      run: git config --global --add safe.directory /__w/pnm-ice/pnm-ice
     - name: run unit tests
       run: |
          python -m pip install -e .

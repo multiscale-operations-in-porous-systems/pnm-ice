@@ -5,3 +5,4 @@ scipy
 pypardiso
 pytest
 pytest-cov
+vtk

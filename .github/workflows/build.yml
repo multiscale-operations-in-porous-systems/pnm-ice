@@ -21,9 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: python:3.10
+      options: --user root
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: add safe directory
+      run: git config --global --add safe.directory .
 
     - name: Test Install
       run: python -m pip install .
@@ -31,11 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: continuumio/miniconda3
+      options: --user root
 
     steps:
     - uses: actions/checkout@v4
     - name: add_forge
       run: conda config --add channels conda-forge
+    - name: add safe directory
+      run: git config --global --add safe.directory .
     - name: install_gxx
       run: conda install gxx
     - name: Test Install
