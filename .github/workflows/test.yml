@@ -14,7 +14,8 @@ jobs:
   unit_test:
     runs-on: ubuntu-latest
     container:
-      image: davevader/pymrm_linux:1.0
+      image: python:3.10
+#      image: davevader/pymrm_linux:1.0
 # workaround, potentially leave the user as root in dockerfile
 # see here: https://github.com/actions/checkout/issues/956
       options: --user root
